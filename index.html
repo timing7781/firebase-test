@@ -53,21 +53,48 @@ window.processLike = async (id) => {
         console.error("Validation Error:", e.message);
     }
 };
+window.processDislike = async (id) => {
+    const docRef = doc(db, "requests", id);
+    try {
+        await updateDoc(docRef, { dislikes: increment(1) });
+    } catch (e) {
+        console.error("Ошибка дизлайка:", e.message);
+    }
+};
 
+window.editRequest = async (id, currentName, currentEmail) => {
+    const newName = prompt("Введите новое имя:", currentName);
+    if (newName === null) return;
+
+    const newEmail = prompt("Введите новый email:", currentEmail);
+    if (newEmail === null) return;
+
+    try {
+        const docRef = doc(db, "requests", id);
+        await updateDoc(docRef, {
+            name: newName,
+            email: newEmail
+        });
+    } catch (e) {
+        console.error("Ошибка редактирования:", e.message);
+        alert("Не удалось изменить запись.");
+    }
+};
 // ДОБАВЛЕНИЕ ЗАПИСИ
 document.getElementById("mainBtn").onclick = async () => {
     const btn = document.getElementById("mainBtn");
     btn.disabled = true;
 
-    try {
-        await addDoc(collection(db, "requests"), {
-            name: document.getElementById("name").value,
-            email: document.getElementById("email").value,
-            likes: 0,
-            timestamp: serverTimestamp()
-        });
-        document.getElementById("email").value = "";
-    } catch (e) {
+   try {
+    await addDoc(collection(db, "requests"), {
+        name: document.getElementById("name").value,
+        email: document.getElementById("email").value,
+        likes: 0,
+        dislikes: 0,
+        timestamp: serverTimestamp()
+    });
+    document.getElementById("email").value = "";
+} catch (e) {
         alert("Ошибка безопасности: Данные отклонены сервером.");
     }
 
@@ -84,14 +111,16 @@ onSnapshot(q, (snapshot) => {
     snapshot.forEach((doc) => {
         const data = doc.data();
 
-        feed.innerHTML += `
-            <div class="post">
-                <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '--:--'}</span>
-                <h3>${data.name}</h3>
-                <p>${data.email}</p>
-                <button class="like-btn" onclick="processLike('${doc.id}')">👍 ${data.likes || 0}</button>
-            </div>
-        `;
+       feed.innerHTML += `
+    <div class="post">
+        <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '--:--'}</span>
+        <h3>${data.name}</h3>
+        <p>${data.email}</p>
+        <button class="like-btn" onclick="processLike('${doc.id}')">👍 ${data.likes || 0}</button>
+        <button class="like-btn" onclick="processDislike('${doc.id}')">👎 ${data.dislikes || 0}</button>
+        <button class="like-btn" onclick="editRequest('${doc.id}', '${data.name}', '${data.email}')">✏️ Редактировать</button>
+    </div>
+`;
     });
 });
 </script>
