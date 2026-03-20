@@ -64,6 +64,18 @@ window.processDislike = async (id) => {
     }
 };
 
+// ДОБАВЛЕНИЕ ПОЛЯ dislikes СТАРЫМ ЗАПИСЯМ
+async function ensureDislikesField(id, data) {
+    if (data.dislikes === undefined) {
+        try {
+            const docRef = doc(db, "requests", id);
+            await updateDoc(docRef, { dislikes: 0 });
+        } catch (e) {
+            console.error("Не удалось добавить dislikes старой записи:", e.message);
+        }
+    }
+}
+
 // ДОБАВЛЕНИЕ ЗАПИСИ + ПРОВЕРКА ПОЛЕЙ
 document.getElementById("mainBtn").onclick = async () => {
     const btn = document.getElementById("mainBtn");
@@ -101,16 +113,18 @@ onSnapshot(q, (snapshot) => {
     const feed = document.getElementById("feed");
     feed.innerHTML = "";
 
-    snapshot.forEach((doc) => {
-        const data = doc.data();
+    snapshot.forEach((docItem) => {
+        const data = docItem.data();
+
+        ensureDislikesField(docItem.id, data);
 
         feed.innerHTML += `
             <div class="post">
                 <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '--:--'}</span>
                 <h3>${data.name}</h3>
                 <p>${data.email}</p>
-                <button class="like-btn" onclick="processLike('${doc.id}')">👍 ${data.likes || 0}</button>
-                <button class="like-btn" onclick="processDislike('${doc.id}')">👎 ${data.dislikes || 0}</button>
+                <button class="like-btn" onclick="processLike('${docItem.id}')">👍 ${Number(data.likes ?? 0)}</button>
+                <button class="like-btn" onclick="processDislike('${docItem.id}')">👎 ${Number(data.dislikes ?? 0)}</button>
             </div>
         `;
     });
