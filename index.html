@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Облачное приложение</title>
     <style>
+        /* Стили из методички */
         body { font-family: sans-serif; background: #f4f7f6; display: flex; flex-direction: column; align-items: center; padding: 20px; }
         .container { width: 100%; max-width: 500px; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .auth-bar { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -14,7 +15,7 @@
         button:hover { background: #0056b3; }
         button:disabled { background: #ccc; }
         .logout-btn { background: #ff4757; padding: 8px 15px; width: auto; font-size: 14px; }
-        .post { background: #fff; border: 1px solid #eaeaea; padding: 15px; margin-top: 15px; border-radius: 12px; width: 100%; max-width: 500px; }
+        .post { background: #fff; border: 1px solid #eaeaea; padding: 15px; margin-top: 15px; border-radius: 12px; width: 100%; max-width: 500px; text-align: left; }
         .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
         .post-avatar { width: 30px; height: 30px; border-radius: 50%; }
         .like-btn { cursor: pointer; border: none; background: #f9f9fb; padding: 5px 10px; border-radius: 20px; transition: 0.2s; }
@@ -48,16 +49,16 @@
         import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, updateDoc, doc, increment } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
         import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
-        // Конфигурация Firebase из методички [cite: 131-136]
+        // ТВОИ ДАННЫЕ ИЗ СКРИНШОТА 
         const firebaseConfig = {
-  apiKey: "AIzaSyB9cmkm9COSfICEZQClLRh_89IYLBpe3TI",
-  authDomain: "mycloudapp-60f78.firebaseapp.com",
-  projectId: "mycloudapp-60f78",
-  storageBucket: "mycloudapp-60f78.firebasestorage.app",
-  messagingSenderId: "961637662881",
-  appId: "1:961637662881:web:e6c8f35bd316d4e79530e0",
-  measurementId: "G-0WMT7RXNPN"
-};
+            apiKey: "AIzaSyB9cmkm9COSFICEZQCLLRh_89IYLBpe3TI",
+            authDomain: "mycloudapp-60f78.firebaseapp.com",
+            projectId: "mycloudapp-60f78",
+            storageBucket: "mycloudapp-60f78.firebasestorage.app",
+            messagingSenderId: "961637662881",
+            appId: "1:961637662881:web:e6c8f35bd316d4e79530e0",
+            measurementId: "G-0WMT7RXNPN"
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -69,11 +70,10 @@
         const userInfo = document.getElementById('userInfo');
         const messageForm = document.getElementById('messageForm');
 
-        // Вход и выход [cite: 155-156]
+        // Авторизация [cite: 432-433]
         loginBtn.onclick = () => signInWithPopup(auth, provider);
         logoutBtn.onclick = () => signOut(auth);
 
-        // Отслеживание состояния авторизации [cite: 157-175]
         onAuthStateChanged(auth, (user) => {
             if (user) {
                 loginBtn.style.display = "none";
@@ -91,14 +91,14 @@
             }
         });
 
-        // Функция лайка [cite: 176-177]
+        // Лайки [cite: 453-454]
         window.processLike = async (id) => {
             await updateDoc(doc(db, "requests", id), {
                 likes: increment(1)
             });
         };
 
-        // Публикация сообщения [cite: 178-205]
+        // Публикация [cite: 455-481]
         document.getElementById("publishBtn").onclick = async () => {
             const content = document.getElementById("content").value;
             if (!content) return alert("Введите текст сообщения");
@@ -115,11 +115,10 @@
                 document.getElementById('content').value = "";
             } catch (e) {
                 alert("Ошибка безопасности! Проверьте правила (Rules) в Firebase.");
-                console.error(e);
             }
         };
 
-        // Загрузка ленты в реальном времени [cite: 208-231]
+        // Лента [cite: 485-508]
         const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
         onSnapshot(q, (snapshot) => {
             const feed = document.getElementById("feed");
@@ -144,7 +143,6 @@
             });
         });
 
-        // Для доступа к db из консоли (тестирование Хакинг 2.0) [cite: 239]
         window.db = db;
     </script>
 </body>
