@@ -11,125 +11,139 @@
         .post { background: #fff; border: 1px solid #eeeeee; padding: 15px; margin-top: 15px; border-radius: 8px; width: 100%; max-width: 500px; position: relative; }
         .like-btn { cursor: pointer; border: none; background: #f8f9fa; padding: 5px 12px; border-radius: 20px; font-size: 14px; }
         .time { font-size: 11px; color: #999; float: right; }
+        .auth-bar { background: white; padding: 15px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .user-avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #007bff; }
+        .logout-btn { background: #ff4757; padding: 8px 15px; width: auto; font-size: 14px; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h3>Панель управления данными</h3>
-    <input type="text" id="name" placeholder="Имя профиля">
-    <input type="email" id="email" placeholder="Рабочий Email">
-    <button id="mainBtn">Опубликовать в облако</button>
-</div>
+    <!-- Кнопка для входа через Google -->
+    <button id="loginBtn">Войти через Google</button>
 
-<div id="feed" style="width: 100%; max-width: 500px;"></div>
+    <!-- Блок с информацией о пользователе и кнопка выхода -->
+    <div id="userInfo" style="display: none;" class="auth-bar">
+        <img id="userPhoto" class="user-avatar" alt="Avatar">
+        <span id="userName" style="font-weight: bold;"></span>
+        <button id="logoutBtn" class="logout-btn">Выйти</button>
+    </div>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
-import {
-    getFirestore, collection, addDoc, query, orderBy, onSnapshot,
-    serverTimestamp, updateDoc, doc, increment
-} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+    <div class="container">
+        <h3>Панель управления данными</h3>
+        <input type="text" id="name" placeholder="Имя профиля">
+        <input type="email" id="email" placeholder="Рабочий Email">
+        <button id="mainBtn">Опубликовать в облако</button>
+    </div>
 
-// ТВОИ КЛЮЧИ
-const firebaseConfig = {
-    apiKey: "AIzaSyB9cmkm9COSFiCEZQCllRh_89IYLPbe3TI",
-    authDomain: "mycloudapp-60f78.firebaseapp.com",
-    projectId: "mycloudapp-60f78",
-    storageBucket: "mycloudapp-60f78.firebasestorage.app",
-    messagingSenderId: "961637662881",
-    appId: "1:961637662881:web:e6c8f35bd316d4e79530e0"
-};
+    <div id="feed" style="width: 100%; max-width: 500px;"></div>
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+        import {
+            getFirestore, collection, addDoc, query, orderBy, onSnapshot,
+            serverTimestamp, updateDoc, doc, increment
+        } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+        import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js";
 
-// АТОМАРНЫЙ ЛАЙК
-window.processLike = async (id) => {
-    const docRef = doc(db, "requests", id);
-    try {
-        await updateDoc(docRef, { likes: increment(1) });
-    } catch (e) {
-        console.error("Validation Error:", e.message);
-    }
-};
+        // ТВОИ КЛЮЧИ
+        const firebaseConfig = {
+            apiKey: "AIzaSyB9cmkm9COSFiCEZQCllRh_89IYLPbe3TI",
+            authDomain: "mycloudapp-60f78.firebaseapp.com",
+            projectId: "mycloudapp-60f78",
+            storageBucket: "mycloudapp-60f78.firebasestorage.app",
+            messagingSenderId: "961637662881",
+            appId: "1:961637662881:web:e6c8f35bd316d4e79530e0"
+        };
 
-// ДИЗЛАЙК
-window.processDislike = async (id) => {
-    const docRef = doc(db, "requests", id);
-    try {
-        await updateDoc(docRef, { dislikes: increment(1) });
-    } catch (e) {
-        console.error("Ошибка дизлайка:", e.message);
-    }
-};
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        const provider = new GoogleAuthProvider();
 
-// ДОБАВЛЕНИЕ ПОЛЯ dislikes СТАРЫМ ЗАПИСЯМ
-async function ensureDislikesField(id, data) {
-    if (data.dislikes === undefined) {
-        try {
-            const docRef = doc(db, "requests", id);
-            await updateDoc(docRef, { dislikes: 0 });
-        } catch (e) {
-            console.error("Не удалось добавить dislikes старой записи:", e.message);
-        }
-    }
-}
+        // Обработчики для входа и выхода
+        const loginBtn = document.getElementById('loginBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const userInfo = document.getElementById('userInfo');
+        const nameInput = document.getElementById('name');
+        const emailInput = document.getElementById('email');
+        const publishBtn = document.getElementById('mainBtn');
 
-// ДОБАВЛЕНИЕ ЗАПИСИ + ПРОВЕРКА ПОЛЕЙ
-document.getElementById("mainBtn").onclick = async () => {
-    const btn = document.getElementById("mainBtn");
-    const nameValue = document.getElementById("name").value.trim();
-    const emailValue = document.getElementById("email").value.trim();
+        // Вход через Google
+        loginBtn.onclick = () => signInWithPopup(auth, provider);
+        logoutBtn.onclick = () => signOut(auth);
 
-    if (!nameValue || !emailValue) {
-        alert("Заполните все поля.");
-        return;
-    }
-
-    btn.disabled = true;
-
-    try {
-        await addDoc(collection(db, "requests"), {
-            name: nameValue,
-            email: emailValue,
-            likes: 0,
-            dislikes: 0,
-            timestamp: serverTimestamp()
+        // Отслеживание состояния пользователя
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                // Если пользователь авторизован
+                loginBtn.style.display = "none";
+                userInfo.style.display = "flex";
+                nameInput.value = user.displayName;
+                emailInput.value = user.email;
+            } else {
+                // Если пользователь не авторизован
+                loginBtn.style.display = "block";
+                userInfo.style.display = "none";
+                nameInput.value = "";
+                emailInput.value = "";
+            }
         });
-        document.getElementById("name").value = "";
-        document.getElementById("email").value = "";
-    } catch (e) {
-        alert("Ошибка безопасности: Данные отклонены сервером.");
-    }
 
-    btn.disabled = false;
-};
+        // Публикация сообщения
+        publishBtn.onclick = async () => {
+            const nameValue = nameInput.value.trim();
+            const emailValue = emailInput.value.trim();
+            if (!nameValue || !emailValue) {
+                alert("Заполните все поля.");
+                return;
+            }
 
-// REAL-TIME СИНХРОНИЗАЦИЯ
-const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
+            try {
+                await addDoc(collection(db, "requests"), {
+                    name: nameValue,
+                    email: emailValue,
+                    likes: 0,
+                    dislikes: 0,
+                    timestamp: serverTimestamp()
+                });
+                nameInput.value = "";
+                emailInput.value = "";
+            } catch (e) {
+                alert("Ошибка безопасности: Данные отклонены сервером.");
+            }
+        };
 
-onSnapshot(q, (snapshot) => {
-    const feed = document.getElementById("feed");
-    feed.innerHTML = "";
+        // АТОМАРНЫЙ ЛАЙК
+        window.processLike = async (id) => {
+            const docRef = doc(db, "requests", id);
+            await updateDoc(docRef, { likes: increment(1) });
+        };
 
-    snapshot.forEach((docItem) => {
-        const data = docItem.data();
+        // ДИЗЛАЙК
+        window.processDislike = async (id) => {
+            const docRef = doc(db, "requests", id);
+            await updateDoc(docRef, { dislikes: increment(1) });
+        };
 
-        ensureDislikesField(docItem.id, data);
-
-        feed.innerHTML += `
-            <div class="post">
-                <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '--:--'}</span>
-                <h3>${data.name}</h3>
-                <p>${data.email}</p>
-                <button class="like-btn" onclick="processLike('${docItem.id}')">👍 ${Number(data.likes ?? 0)}</button>
-                <button class="like-btn" onclick="processDislike('${docItem.id}')">👎 ${Number(data.dislikes ?? 0)}</button>
-            </div>
-        `;
-    });
-});
-</script>
+        // Загрузка ленты в реальном времени
+        const q = query(collection(db, "requests"), orderBy("timestamp", "desc"));
+        onSnapshot(q, (snapshot) => {
+            const feed = document.getElementById("feed");
+            feed.innerHTML = "";
+            snapshot.forEach((docItem) => {
+                const data = docItem.data();
+                feed.innerHTML += `
+                    <div class="post">
+                        <span class="time">${data.timestamp?.toDate().toLocaleTimeString() || '--:--'}</span>
+                        <h3>${data.name}</h3>
+                        <p>${data.email}</p>
+                        <button class="like-btn" onclick="processLike('${docItem.id}')">👍 ${Number(data.likes ?? 0)}</button>
+                        <button class="like-btn" onclick="processDislike('${docItem.id}')">👎 ${Number(data.dislikes ?? 0)}</button>
+                    </div>
+                `;
+            });
+        });
+    </script>
 
 </body>
 </html>
